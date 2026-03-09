@@ -3,12 +3,15 @@ from selenium.webdriver.common.by import By
 from pages.main_page import MainPage
 from pages.product_page import ProductPage
 from pages.admin_login_page import AdminLoginPage
+from pages.register_page import RegisterPage
 
 
 def test_load_main_page(browser, base_url):
     """ТЕСТ 1: Загрузка главной страницы"""
-    browser.get(base_url)
+    page = MainPage(browser, base_url).open()
     assert "Your Store" in browser.title
+    assert page.cart_visible()
+    assert page.menu_visible()
 
 
 def test_main_page_elements(browser, base_url):
@@ -43,84 +46,49 @@ def test_register_page(browser, base_url):
     assert "Register Account" in browser.page_source
 
 
-def test_register_new_user(browser, base_url):
+def test_register_new_user(browser, base_url, test_user):
     """ТЕСТ 7: Регистрация нового пользователя"""
-    browser.get(f"{base_url}/en-gb?route=account/register")
-    time.sleep(2)  # Ждем загрузку страницы
-
-    email = f"user_{int(time.time())}@test.com"
-
-    # Заполняем форму
-    browser.find_element(By.ID, "input-firstname").send_keys("Test")
-    browser.find_element(By.ID, "input-lastname").send_keys("User")
-    browser.find_element(By.ID, "input-email").send_keys(email)
-    browser.find_element(By.ID, "input-password").send_keys("123456")
-
-    # Скроллим до чекбокса и кликаем
-    agree = browser.find_element(By.NAME, "agree")
-    browser.execute_script("arguments[0].scrollIntoView(true);", agree)
-    time.sleep(1)
-    agree.click()
-
-    # Скроллим до кнопки и кликаем
-    submit = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
-    browser.execute_script("arguments[0].scrollIntoView(true);", submit)
-    time.sleep(1)
-    submit.click()
-
-    time.sleep(3)  # Ждем загрузку страницы успеха
-    assert "Your Account Has Been Created!" in browser.page_source
+    register_page = RegisterPage(browser, base_url)
+    register_page.open()
+    register_page.register(
+        first_name=test_user["first_name"],
+        last_name=test_user["last_name"],
+        email=test_user["email"],
+        password=test_user["password"]
+    )
+    assert register_page.is_registration_successful(), \
+        "Сообщение об успешной регистрации не найдено"
 
 
 def test_add_to_cart(browser, base_url):
     """ТЕСТ 8: Добавление в корзину"""
-    # Открываем страницу iPhone
-    browser.get(f"{base_url}/en-gb/product/iphone")
-    time.sleep(3)
+    product_page = ProductPage(browser, f"{base_url}/en-gb/product/iphone").open()
+    product_page.add_to_cart()
 
-    # Скроллим до кнопки и ждем
-    add_btn = browser.find_element(By.ID, "button-cart")
-    browser.execute_script("arguments[0].scrollIntoView({block: 'center'});", add_btn)
-    time.sleep(1)
-
-    # Кликаем через JavaScript
-    browser.execute_script("arguments[0].click();", add_btn)
-    time.sleep(3)
-
-    # Переходим в корзину
     browser.get(f"{base_url}/en-gb?route=checkout/cart")
-    time.sleep(2)
-
     assert "iPhone" in browser.page_source
 
 
 def test_currency_switch(browser, base_url):
     """ТЕСТ 9: Переключение валют"""
-    browser.get(base_url)
-    time.sleep(3)
+    main_page = MainPage(browser, base_url).open()
 
-    # Получаем цену в долларах
-    price1 = browser.find_element(By.CSS_SELECTOR, ".price").text
-    print(f"\nUSD: {price1}")
+    price_usd = main_page.get_price()
+    print(f"\nUSD: {price_usd}")
 
-    # Переключаем валюту
-    browser.find_element(By.CSS_SELECTOR, "#form-currency .dropdown-toggle").click()
-    time.sleep(1)
-    browser.find_element(By.CSS_SELECTOR, "a[href*='EUR']").click()
-    time.sleep(3)
+    main_page.switch_to_euro()
 
-    # Получаем цену в евро
-    price2 = browser.find_element(By.CSS_SELECTOR, ".price").text
-    print(f"EUR: {price2}")
+    price_eur = main_page.get_price()
+    print(f"EUR: {price_eur}")
 
-    assert price1 != price2
+    assert price_usd != price_eur
 
 
 def test_admin_login(browser, base_url, admin_creds):
     """ТЕСТ 10: Вход в админку"""
     login_page = AdminLoginPage(browser, f"{base_url}/administration").open()
     admin_page = login_page.login(admin_creds["login"], admin_creds["password"])
-    assert admin_page.is_dashboard()
+    assert admin_page.is_dashboard_displayed()
 
 
 def test_admin_add_product(browser, base_url, admin_creds, test_product):

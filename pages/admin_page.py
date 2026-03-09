@@ -1,9 +1,11 @@
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from pages.base_page import BasePage
-import time
 
 
 class AdminPage(BasePage):
+    # Локаторы
     DASHBOARD = (By.XPATH, "//h1[contains(text(),'Dashboard')]")
     CATALOG = (By.ID, "menu-catalog")
     PRODUCTS = (By.LINK_TEXT, "Products")
@@ -18,51 +20,66 @@ class AdminPage(BasePage):
     FILTER_BTN = (By.ID, "button-filter")
     DELETE = (By.CSS_SELECTOR, "[data-original-title='Delete']")
 
-    def is_dashboard(self):
-        return self.find(self.DASHBOARD).is_displayed()
+    def wait_click(self, locator, timeout=10):
+        """Ожидание кликабельного элемента"""
+        return WebDriverWait(self.browser, timeout).until(
+            EC.element_to_be_clickable(locator)
+        )
+
+    def wait_visible(self, locator, timeout=10):
+        """Ожидание видимого элемента"""
+        return WebDriverWait(self.browser, timeout).until(
+            EC.visibility_of_element_located(locator)
+        )
+
+    def is_dashboard_displayed(self):
+        """Проверка наличия дашборда"""
+        try:
+            return self.wait_visible(self.DASHBOARD, 5).is_displayed()
+        except:
+            return False
 
     def go_to_products(self):
-        self.click(self.CATALOG)
-        time.sleep(1)
-        self.click(self.PRODUCTS)
-        time.sleep(2)
+        """Переход в раздел Products"""
+        self.wait_click(self.CATALOG).click()
+        self.wait_visible(self.PRODUCTS)
+        self.wait_click(self.PRODUCTS).click()
 
     def add_product(self, name, model):
-        self.click(self.ADD_NEW)
-        time.sleep(2)
+        """Добавление продукта"""
+        self.wait_click(self.ADD_NEW).click()
 
-        self.type(self.PROD_NAME, name)
-        self.type(self.META_TITLE, name)
+        self.wait_visible(self.PROD_NAME).send_keys(name)
+        self.find(self.META_TITLE).send_keys(name)
 
-        self.click(self.DATA_TAB)
-        time.sleep(1)
-
-        self.type(self.MODEL, model)
-
-        self.click(self.SAVE)
-        time.sleep(2)
+        self.wait_click(self.DATA_TAB).click()
+        self.wait_visible(self.MODEL).send_keys(model)
+        self.wait_click(self.SAVE).click()
 
     def find_product(self, name):
-        self.type(self.FILTER_NAME, name)
-        self.click(self.FILTER_BTN)
-        time.sleep(2)
+        """Поиск продукта по имени"""
+        self.wait_visible(self.FILTER_NAME).clear()
+        self.find(self.FILTER_NAME).send_keys(name)
+        self.wait_click(self.FILTER_BTN).click()
 
     def delete_product(self, name):
+        """Удаление продукта"""
         self.find_product(name)
 
-        checkbox = self.browser.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
-        checkbox.click()
-        time.sleep(1)
+        self.wait_click((By.CSS_SELECTOR, "input[type='checkbox']")).click()
+        self.wait_click(self.DELETE).click()
 
-        self.click(self.DELETE)
-        time.sleep(1)
+        WebDriverWait(self.browser, 5).until(EC.alert_is_present())
+        self.browser.switch_to.alert.accept()
 
-        alert = self.browser.switch_to.alert
-        alert.accept()
-        time.sleep(2)
+        # Ждем исчезновения чекбокса
+        WebDriverWait(self.browser, 10).until(
+            EC.invisibility_of_element_located((By.CSS_SELECTOR, "input[type='checkbox']"))
+        )
 
     def success_message(self):
+        """Проверка сообщения об успехе"""
         try:
-            return self.find(self.SUCCESS).is_displayed()
-        except Exception:
+            return self.wait_visible(self.SUCCESS, 5).is_displayed()
+        except:
             return False

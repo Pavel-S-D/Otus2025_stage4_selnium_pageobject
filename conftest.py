@@ -1,4 +1,5 @@
 import pytest
+import time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
@@ -41,4 +42,13 @@ def test_product():
         "model": "Test_model",
         "meta_title": "Meta Test_product",
         "seo_keyword": "test-product"
+    }
+
+@pytest.fixture
+def test_user():
+    return {
+        "first_name": "Test",
+        "last_name": "User",
+        "email": f"user_{int(time.time())}@test.com",
+        "password": "123456"
     }
